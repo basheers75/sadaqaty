@@ -307,29 +307,28 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
           </div>
         )}
 
-        {/* ── CARD 1: Prayer — image 2 style, white/light card ── */}
+        {/* ── CARD 1: Prayer — navy background ── */}
         {times && nextPrayer && (
-          <div style={{ ...cardBase, background: "#fff" }}>
+          <div style={{ ...cardBase, background: "linear-gradient(160deg, #2c3e6b 0%, #1a2a4a 100%)" }}>
 
             {/* Top always-visible section */}
-            <div style={{ padding: "16px 18px 14px" }}>
+            <div style={{ padding: "18px 20px 16px" }}>
 
-              {/* Prayer name (start) + countdown (end) on same row */}
+              {/* Prayer name + countdown */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "2rem", color: "#2c3e6b", lineHeight: 1 }}>
+                <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "2.4rem", color: "#d4a843", lineHeight: 1 }}>
                   {isAr ? nextPrayer.ar : nextPrayer.en}
                 </div>
-                <PrayerCountdown targetMin={nextPrayer.min} isAr={isAr} fontSize="1.6rem" color="#1a1a2e" />
+                <PrayerCountdown targetMin={nextPrayer.min} isAr={isAr} fontSize="1.9rem" color="#f5f0e8" />
               </div>
 
               {/* Progress bar */}
               {prevPrayer && <ProgressBar prevMin={prevPrayer.min} nextMin={nextPrayer.min} nowMin={nowMin} />}
 
-              {/* Show more / less button */}
+              {/* Show more / less */}
               <div style={{ display: "flex", justifyContent: "center", marginTop: 14 }}>
-                <button
-                  onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
-                  style={{ background: "#c0392b", border: "none", borderRadius: 20, color: "#fff", fontSize: "0.9rem", fontWeight: 600, padding: "7px 26px", cursor: "pointer" }}>
+                <button onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+                  style={{ background: "#c0392b", border: "none", borderRadius: 20, color: "#fff", fontSize: "0.95rem", fontWeight: 600, padding: "8px 28px", cursor: "pointer" }}>
                   {expanded ? (isAr ? "إظهار أقل" : "Show less") : (isAr ? "إظهار المزيد" : "Show more")}
                 </button>
               </div>
@@ -337,38 +336,47 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
 
             {/* Expandable bell schedule */}
             <div style={{ overflow: "hidden", maxHeight: expanded ? 700 : 0, transition: "max-height 0.35s ease" }}>
-              <div style={{ borderTop: "1px solid #f0ebe3" }}>
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.18)" }}>
 
                 {/* Column headers */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr repeat(3,44px) 60px", padding: "8px 16px 4px", borderBottom: "1px solid #f5f0f0" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 72px", padding: "8px 16px 4px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
                   <div />
                   {[isAr ? "قبل" : "Before", isAr ? "أذان" : "Azan", isAr ? "بعد" : "After"].map(h => (
-                    <div key={h} style={{ fontSize: "0.68rem", color: "#aaa", textAlign: "center", letterSpacing: "0.04em" }}>{h}</div>
+                    <div key={h} style={{ fontFamily: uiFont, fontSize: "0.8rem", color: "rgba(245,240,232,0.45)", textAlign: "center" }}>{h}</div>
                   ))}
-                  <div style={{ fontSize: "0.68rem", color: "#aaa", textAlign: "center" }}>{isAr ? "الوقت" : "Time"}</div>
+                  <div style={{ fontFamily: uiFont, fontSize: "0.8rem", color: "rgba(245,240,232,0.45)", textAlign: "center" }}>{isAr ? "الوقت" : "Time"}</div>
                 </div>
 
-                {/* Prayer rows — all full opacity, no graying */}
+                {/* Prayer rows — all full opacity */}
                 {PRAYER_LIST.map(p => {
                   const isCur = nextPrayer.key === p.key;
                   const b = bells[p.key] ?? [false, false, false];
+                  const timeStr = isAr
+                    ? times[p.key].replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[+d])
+                    : times[p.key];
                   return (
-                    <div key={p.key} style={{ display: "grid", gridTemplateColumns: "1fr repeat(3,44px) 60px", alignItems: "center", padding: "7px 16px", borderBottom: "1px solid #f8f5f2", background: isCur ? "rgba(44,62,107,0.05)" : "transparent" }}>
-                      <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.1rem", color: isCur ? "#2c3e6b" : "#333", fontWeight: isCur ? 700 : 400 }}>
+                    <div key={p.key} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 72px", alignItems: "center", padding: "9px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: isCur ? "rgba(255,255,255,0.08)" : "transparent" }}>
+                      {/* Name */}
+                      <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.25rem", color: isCur ? "#d4a843" : "rgba(245,240,232,0.88)", fontWeight: isCur ? 700 : 400 }}>
                         {isAr ? p.ar : p.en}
                       </div>
+                      {/* Bells — centered */}
                       {([0, 1, 2] as (0|1|2)[]).map(i => (
-                        <div key={i} style={{ display: "flex", justifyContent: "center" }}>
-                          <Bell on={b[i]} onClick={() => toggleBell(p.key, i)} />
+                        <div key={i} style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                          <button onClick={e => { e.stopPropagation(); toggleBell(p.key, i); }}
+                            style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", fontSize: "1.35rem", color: b[i] ? "#d4a843" : "rgba(245,240,232,0.2)", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {b[i] ? "🔔" : "🔕"}
+                          </button>
                         </div>
                       ))}
-                      <div style={{ direction: "ltr", fontFamily: "'Courier New', monospace", fontSize: "0.9rem", fontWeight: isCur ? 700 : 400, color: isCur ? "#2c3e6b" : "#555", textAlign: "center" }}>
-                        {times[p.key]}
+                      {/* Time with Hindi numerals in AR */}
+                      <div style={{ direction: "ltr", fontFamily: "'Courier New', monospace", fontSize: "1rem", fontWeight: isCur ? 700 : 400, color: isCur ? "#d4a843" : "rgba(245,240,232,0.65)", textAlign: "center" }}>
+                        {timeStr}
                       </div>
                     </div>
                   );
                 })}
-                <div style={{ height: 8 }} />
+                <div style={{ height: 10 }} />
               </div>
             </div>
           </div>
