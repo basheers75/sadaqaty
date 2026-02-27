@@ -24,7 +24,7 @@ export default function App() {
         async (pos) => {
           const { latitude: lat, longitude: lng } = pos.coords;
           const name = await reverseGeocode(lat, lng);
-          savePrefs({ lat, lng, locationName: name || `${lat.toFixed(2)}, ${lng.toFixed(2)}`, method: "MWL", asrFactor: 1 });
+          savePrefs({ lat, lng, locationName: name || `${lat.toFixed(2)}, ${lng.toFixed(2)}`, method: "MWL", asrFactor: 1, offsets: { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 } });
         },
         () => {},
         { timeout: 8000 }
