@@ -9,6 +9,7 @@ export default function SettingsScreen({ onHome }: { onHome: () => void }) {
   const [cityInput, setCityInput] = useState("");
   const [method, setMethod]       = useState("MWL");
   const [asrFactor, setAsr]       = useState(1);
+  const [offsetMin, setOffset]    = useState(0);
   const [loading, setLoading]     = useState(false);
   const [status, setStatus]       = useState("");
   const [error, setError]         = useState("");
@@ -19,7 +20,7 @@ export default function SettingsScreen({ onHome }: { onHome: () => void }) {
 
   useEffect(() => {
     const p = loadPrefs();
-    if (p) { setPrefs(p); setMethod(p.method); setAsr(p.asrFactor); }
+    if (p) { setPrefs(p); setMethod(p.method); setAsr(p.asrFactor); setOffset(p.offsetMin ?? 0); }
   }, []);
 
   const switchLang = (l: Lang) => { setLang(l); setLangState(l); };
@@ -31,7 +32,7 @@ export default function SettingsScreen({ onHome }: { onHome: () => void }) {
       async (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
         const name = await reverseGeocode(lat, lng);
-        const p: LocationPrefs = { lat, lng, locationName: name || `${lat.toFixed(2)}, ${lng.toFixed(2)}`, method, asrFactor };
+        const p: LocationPrefs = { lat, lng, locationName: name || `${lat.toFixed(2)}, ${lng.toFixed(2)}`, method, asrFactor, offsetMin };
         savePrefs(p); setPrefs(p);
         setStatus(`✓ ${t.locationSet}: ${p.locationName}`);
         setLoading(false);
@@ -50,7 +51,7 @@ export default function SettingsScreen({ onHome }: { onHome: () => void }) {
     setLoading(true); setError(""); setStatus(t.searching);
     const result = await geocodeCity(cityInput.trim());
     if (result) {
-      const p: LocationPrefs = { lat: result.lat, lng: result.lng, locationName: result.name, method, asrFactor };
+      const p: LocationPrefs = { lat: result.lat, lng: result.lng, locationName: result.name, method, asrFactor, offsetMin };
       savePrefs(p); setPrefs(p);
       setCityInput("");
       setStatus(`✓ ${t.locationSet}: ${result.name}`);
@@ -63,7 +64,7 @@ export default function SettingsScreen({ onHome }: { onHome: () => void }) {
 
   const saveCalcPrefs = () => {
     if (!prefs) { setError(t.location); return; }
-    const p = { ...prefs, method, asrFactor };
+    const p = { ...prefs, method, asrFactor, offsetMin };
     savePrefs(p); setPrefs(p);
     setStatus(`✓ ${t.calcSaved}`);
   };
@@ -110,7 +111,6 @@ export default function SettingsScreen({ onHome }: { onHome: () => void }) {
         {/* Location */}
         <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
           <div style={sectionTitle}>{t.location}</div>
-
           {prefs && (
             <>
               <div style={{ padding: "4px 18px 12px", display: "flex", alignItems: "center", gap: 10 }}>
@@ -124,14 +124,12 @@ export default function SettingsScreen({ onHome }: { onHome: () => void }) {
               <div style={{ height: 1, background: "#f0ebe3", margin: "0 18px" }} />
             </>
           )}
-
           <div style={{ padding: "12px 18px" }}>
             <button onClick={requestGPS} disabled={loading}
               style={{ width: "100%", padding: 13, background: "#2c3e6b", border: "none", borderRadius: 12, color: "#f5f0e8", fontFamily: "inherit", fontSize: "1rem", fontWeight: 500, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
               📡 {loading ? t.locating : t.useGPS}
             </button>
           </div>
-
           <div style={{ fontSize: "0.82rem", color: "#888", padding: "0 18px 8px" }}>{t.orEnterCity}</div>
           <div style={{ display: "flex", gap: 8, padding: "0 18px 16px" }}>
             <input style={inputStyle} placeholder={t.cityPlaceholder} value={cityInput}
@@ -144,7 +142,7 @@ export default function SettingsScreen({ onHome }: { onHome: () => void }) {
           </div>
         </div>
 
-        {/* Calculation method */}
+        {/* Calculation method + Asr + Offset */}
         <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
           <div style={sectionTitle}>{t.calcMethod}</div>
           <div style={{ padding: "4px 18px 14px" }}>
@@ -165,6 +163,33 @@ export default function SettingsScreen({ onHome }: { onHome: () => void }) {
                 {opt.label}
               </button>
             ))}
+          </div>
+
+          {/* ── Time Correction ── */}
+          <div style={{ height: 1, background: "#f0ebe3", margin: "0 18px" }} />
+          <div style={sectionTitle}>
+            {isAr ? "تصحيح وقت الصلاة" : "Prayer Time Correction"}
+          </div>
+          <div style={{ padding: "4px 18px 8px", fontSize: isAr ? "0.9rem" : "0.78rem", color: "#999", lineHeight: 1.5 }}>
+            {isAr
+              ? "إذا كانت أوقات الصلاة تختلف عن مسجدك بدقائق، اضبطها هنا. مثال: ‎+3 أو ‎-2"
+              : "If your local mosque times differ by a few minutes, adjust here. Example: +3 or -2"}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 18px 16px" }}>
+            {/* Minus button */}
+            <button onClick={() => setOffset(v => v - 1)}
+              style={{ width: 42, height: 42, borderRadius: "50%", border: "1.5px solid #e8e0d5", background: "#f5f0e8", fontSize: "1.4rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#2c3e6b", fontWeight: 700, flexShrink: 0 }}>
+              −
+            </button>
+            {/* Display */}
+            <div style={{ flex: 1, textAlign: "center", fontSize: "1.4rem", fontWeight: 700, color: offsetMin === 0 ? "#aaa" : offsetMin > 0 ? "#2c3e6b" : "#c0392b" }}>
+              {offsetMin > 0 ? `+${offsetMin}` : offsetMin} {isAr ? "دقيقة" : "min"}
+            </div>
+            {/* Plus button */}
+            <button onClick={() => setOffset(v => v + 1)}
+              style={{ width: 42, height: 42, borderRadius: "50%", border: "1.5px solid #e8e0d5", background: "#f5f0e8", fontSize: "1.4rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#2c3e6b", fontWeight: 700, flexShrink: 0 }}>
+              +
+            </button>
           </div>
 
           <div style={{ padding: "0 18px 16px" }}>

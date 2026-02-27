@@ -142,7 +142,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
   useEffect(() => {
     const prefs = loadPrefs();
     if (prefs) {
-      const t2 = computeTimes(new Date(), prefs.lat, prefs.lng, prefs.method, prefs.asrFactor);
+      const t2 = computeTimes(new Date(), prefs.lat, prefs.lng, prefs.method, prefs.asrFactor, prefs.offsetMin ?? 0);
       setTimes(t2);
       setLoc(prefs.locationName);
     } else {

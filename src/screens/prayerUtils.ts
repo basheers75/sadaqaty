@@ -32,7 +32,7 @@ function sunPosition(jd: number) {
   return { dec, EqT };
 }
 
-export function computeTimes(date: Date, lat: number, lng: number, methodKey = "MWL", asrFactor = 1) {
+export function computeTimes(date: Date, lat: number, lng: number, methodKey = "MWL", asrFactor = 1, offsetMin = 0) {
   const method = CALC_METHODS[methodKey] ?? CALC_METHODS.MWL;
   const jd = julianDate(date.getFullYear(), date.getMonth() + 1, date.getDate());
   const { dec, EqT } = sunPosition(jd);
@@ -55,7 +55,7 @@ export function computeTimes(date: Date, lat: number, lng: number, methodKey = "
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   };
 
-  const adj = 3 / 60; // +3 min correction offset
+  const adj = (offsetMin || 0) / 60;
 
   return {
     fajr:    fmt(noon + ha(method.fajr, -1) + adj),
@@ -135,6 +135,7 @@ export interface LocationPrefs {
   locationName: string;
   method: string;
   asrFactor: number;
+  offsetMin: number;
 }
 
 const STORE_KEY = "sadaqa_location_prefs";

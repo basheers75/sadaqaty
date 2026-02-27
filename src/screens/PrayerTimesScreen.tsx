@@ -25,14 +25,14 @@ export default function PrayerTimesScreen({ onHome, onSettings }: { onHome: () =
   useEffect(() => {
     const prefs = loadPrefs();
     if (prefs) {
-      setTimes(computeTimes(new Date(), prefs.lat, prefs.lng, prefs.method, prefs.asrFactor));
+      setTimes(computeTimes(new Date(), prefs.lat, prefs.lng, prefs.method, prefs.asrFactor, prefs.offsetMin ?? 0));
       setLoc(prefs.locationName);
     } else { setNoLoc(true); }
   }, []);
 
   useEffect(() => {
     const prefs = loadPrefs();
-    if (prefs) setTimes(computeTimes(now, prefs.lat, prefs.lng, prefs.method, prefs.asrFactor));
+    if (prefs) setTimes(computeTimes(now, prefs.lat, prefs.lng, prefs.method, prefs.asrFactor, prefs.offsetMin ?? 0));
   }, [now]);
 
   const hijri  = toHijri(now);
