@@ -55,15 +55,17 @@ export function computeTimes(date: Date, lat: number, lng: number, methodKey = "
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   };
 
+  const adj = 3 / 60; // +3 min correction offset
+
   return {
-    fajr:    fmt(noon + ha(method.fajr, -1)),
-    sunrise: fmt(noon + ha(0.833, -1)),
-    dhuhr:   fmt(noon + 1 / 60),
-    asr:     fmt(noon + ha(-asrAngle, 1)),
-    maghrib: fmt(noon + ha(0.833, 1) + 2 / 60),
+    fajr:    fmt(noon + ha(method.fajr, -1) + adj),
+    sunrise: fmt(noon + ha(0.833, -1) + adj),
+    dhuhr:   fmt(noon + 1 / 60 + adj),
+    asr:     fmt(noon + ha(-asrAngle, 1) + adj),
+    maghrib: fmt(noon + ha(0.833, 1) + 2 / 60 + adj),
     isha:    typeof method.isha === "string"
-               ? fmt(noon + ha(0.833, 1) + 90 / 60)
-               : fmt(noon + ha(method.isha as number, 1)),
+               ? fmt(noon + ha(0.833, 1) + 90 / 60 + adj)
+               : fmt(noon + ha(method.isha as number, 1) + adj),
   };
 }
 
