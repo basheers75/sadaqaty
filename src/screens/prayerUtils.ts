@@ -32,7 +32,7 @@ function sunPosition(jd: number) {
   return { dec, EqT };
 }
 
-export function computeTimes(date: Date, lat: number, lng: number, methodKey = "MWL", asrFactor = 1, offsetMin = 0) {
+export function computeTimes(date: Date, lat: number, lng: number, methodKey = "MWL", asrFactor = 1, offsets: Partial<PrayerOffsets> = {}) {
   const method = CALC_METHODS[methodKey] ?? CALC_METHODS.MWL;
   const jd = julianDate(date.getFullYear(), date.getMonth() + 1, date.getDate());
   const { dec, EqT } = sunPosition(jd);
@@ -55,17 +55,17 @@ export function computeTimes(date: Date, lat: number, lng: number, methodKey = "
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   };
 
-  const adj = (offsetMin || 0) / 60;
+  const o = { ...DEFAULT_OFFSETS, ...offsets };
 
   return {
-    fajr:    fmt(noon + ha(method.fajr, -1) + adj),
-    sunrise: fmt(noon + ha(0.833, -1) + adj),
-    dhuhr:   fmt(noon + 1 / 60 + adj),
-    asr:     fmt(noon + ha(-asrAngle, 1) + adj),
-    maghrib: fmt(noon + ha(0.833, 1) + 2 / 60 + adj),
+    fajr:    fmt(noon + ha(method.fajr, -1)          + o.fajr    / 60),
+    sunrise: fmt(noon + ha(0.833, -1)                + o.sunrise / 60),
+    dhuhr:   fmt(noon + 1 / 60                       + o.dhuhr   / 60),
+    asr:     fmt(noon + ha(-asrAngle, 1)             + o.asr     / 60),
+    maghrib: fmt(noon + ha(0.833, 1) + 2 / 60        + o.maghrib / 60),
     isha:    typeof method.isha === "string"
-               ? fmt(noon + ha(0.833, 1) + 90 / 60 + adj)
-               : fmt(noon + ha(method.isha as number, 1) + adj),
+               ? fmt(noon + ha(0.833, 1) + 90 / 60   + o.isha    / 60)
+               : fmt(noon + ha(method.isha as number, 1) + o.isha / 60),
   };
 }
 
@@ -97,6 +97,17 @@ export function formatCountdown(nowMin: number, targetMin: number) {
   const h = Math.floor(diff / 60), m = diff % 60;
   return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
 }
+
+export interface PrayerOffsets {
+  fajr: number;
+  sunrise: number;
+  dhuhr: number;
+  asr: number;
+  maghrib: number;
+  isha: number;
+}
+
+export const DEFAULT_OFFSETS: PrayerOffsets = { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 };
 
 export const PRAYER_LIST = [
   { key: "fajr",    ar: "الفجر",  en: "Fajr"    },
@@ -135,7 +146,7 @@ export interface LocationPrefs {
   locationName: string;
   method: string;
   asrFactor: number;
-  offsetMin: number;
+  offsets: PrayerOffsets;
 }
 
 const STORE_KEY = "sadaqa_location_prefs";
