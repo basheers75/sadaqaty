@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, memo } from "react";
 import { computeTimes, toHijri, timeToMin, PRAYER_LIST_5, loadPrefs } from "./prayerUtils";
 import { getLang, T } from "./langStore";
 
-// ─── Isolated countdown — only this re-renders every second, nothing else ───
+// ─── Isolated countdown — each digit in its own fixed box = zero layout shift ───
 const PrayerCountdown = memo(({ targetMin }: { targetMin: number }) => {
-  const [display, setDisplay] = useState("");
+  const [parts, setParts] = useState({ h1:"0",h2:"0",m1:"0",m2:"0",s1:"0",s2:"0" });
   const ref = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const calc = () => {
@@ -15,29 +15,41 @@ const PrayerCountdown = memo(({ targetMin }: { targetMin: number }) => {
     const h = Math.floor(diff / 3600);
     const m = Math.floor((diff % 3600) / 60);
     const s = diff % 60;
-    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+    const hh = String(h).padStart(2,"0");
+    const mm = String(m).padStart(2,"0");
+    const ss = String(s).padStart(2,"0");
+    return { h1:hh[0], h2:hh[1], m1:mm[0], m2:mm[1], s1:ss[0], s2:ss[1] };
   };
 
   useEffect(() => {
-    setDisplay(calc());
-    ref.current = setInterval(() => setDisplay(calc()), 1000);
+    setParts(calc());
+    ref.current = setInterval(() => setParts(calc()), 1000);
     return () => { if (ref.current) clearInterval(ref.current); };
   }, [targetMin]);
 
+  const D = ({ v }: { v: string }) => (
+    <span style={{
+      display: "inline-block",
+      width: "1ch",
+      textAlign: "center",
+      fontVariantNumeric: "tabular-nums",
+    }}>{v}</span>
+  );
+  const Sep = () => <span style={{ display: "inline-block", width: "0.5ch", textAlign: "center" }}>:</span>;
+
   return (
     <div style={{
-      fontFamily: "'DM Sans', monospace",
+      fontFamily: "'Courier New', Courier, monospace",
       fontSize: "3.2rem",
       color: "#f5f0e8",
       fontWeight: 700,
       lineHeight: 1,
-      letterSpacing: "0.06em",
-      fontVariantNumeric: "tabular-nums",
-      // Fixed width prevents layout shift as digits change
-      minWidth: "100%",
       textAlign: "center",
+      // Lock the entire countdown to a fixed size — never shifts
+      width: "100%",
+      letterSpacing: 0,
     }}>
-      {display}
+      <D v={parts.h1}/><D v={parts.h2}/><Sep/><D v={parts.m1}/><D v={parts.m2}/><Sep/><D v={parts.s1}/><D v={parts.s2}/>
     </div>
   );
 });
@@ -119,7 +131,6 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
   const [times, setTimes]       = useState<Record<string, string> | null>(null);
   const [locationName, setLoc]  = useState("");
   const [noLocation, setNoLoc]  = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [lastRead, setLastRead] = useState<{ page: number; surahName: string } | null>(null);
   const [notifStatus, setNotifStatus] = useState<"unknown"|"granted"|"denied"|"unsupported">("unknown");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -297,34 +308,16 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
               )}
             </div>
 
-            {/* Countdown — isolated component, only it re-renders every second */}
+            {/* Countdown — isolated, zero layout shift */}
             <div style={{ padding: "8px 20px 4px" }}>
               <PrayerCountdown targetMin={nextPrayer.min} />
             </div>
 
-            {/* Full schedule toggle */}
-            <div style={{ textAlign: "center", padding: "10px 20px 16px" }}
-              onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}>
-              <span style={{ fontFamily: uiFont, fontSize: "0.95rem", color: "#ffffff", fontWeight: 500, cursor: "pointer" }}>
-                {expanded ? `▲ ${t.hideSchedule}` : `▼ ${t.fullSchedule}`}
+            {/* Tap hint */}
+            <div style={{ textAlign: "center", padding: "10px 20px 16px" }}>
+              <span style={{ fontFamily: uiFont, fontSize: "0.88rem", color: "rgba(255,255,255,0.45)" }}>
+                {isAr ? "اضغط لعرض الجدول الكامل" : "Tap for full schedule"}
               </span>
-            </div>
-
-            {/* Expanded schedule */}
-            <div style={{ overflow: "hidden", maxHeight: expanded ? 500 : 0, transition: "max-height 0.4s ease", background: "rgba(0,0,0,0.15)" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "8px 14px 14px", gap: 4 }}>
-                {PRAYER_LIST_5.map(p => {
-                  const pm = timeToMin(times[p.key]);
-                  const isCur = nextPrayer.key === p.key;
-                  const past  = pm >= 0 && pm < nowMin && !isCur;
-                  return (
-                    <div key={p.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 10, background: isCur ? "rgba(255,255,255,0.12)" : "transparent", opacity: past ? 0.35 : 1 }}>
-                      <span style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.2rem", color: isCur ? "#d4a843" : "rgba(245,240,232,0.8)" }}>{p.ar}</span>
-                      <span style={{ fontFamily: uiFont, fontSize: "1rem", fontWeight: isCur ? 700 : 400, color: isCur ? "#d4a843" : "rgba(245,240,232,0.7)" }}>{times[p.key]}</span>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           </div>
         )}
