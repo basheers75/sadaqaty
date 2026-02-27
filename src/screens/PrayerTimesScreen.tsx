@@ -2,9 +2,12 @@ import { useState, useEffect, useRef, memo } from "react";
 import { computeTimes, toHijri, timeToMin, PRAYER_LIST, loadPrefs } from "./prayerUtils";
 import { getLang, T } from "./langStore";
 
-// ── Fixed-digit countdown, zero layout shift ──────────────────────────────────
-const PrayerCountdown = memo(({ targetMin }: { targetMin: number }) => {
-  const [p, setP] = useState({ h1:"0",h2:"0",m1:"0",m2:"0",s1:"0",s2:"0" });
+// ── Countdown — RTL-safe, Hindi numerals in Arabic mode ──────────────────────
+const HINDI_D = "٠١٢٣٤٥٦٧٨٩";
+function toHindi(s: string) { return s.replace(/\d/g, d => HINDI_D[+d]); }
+
+const PrayerCountdown = memo(({ targetMin, isAr }: { targetMin: number; isAr: boolean }) => {
+  const [str, setStr] = useState("00:00:00");
   const ref = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const calc = () => {
@@ -15,23 +18,19 @@ const PrayerCountdown = memo(({ targetMin }: { targetMin: number }) => {
     const h = String(Math.floor(diff/3600)).padStart(2,"0");
     const m = String(Math.floor((diff%3600)/60)).padStart(2,"0");
     const s = String(diff%60).padStart(2,"0");
-    return { h1:h[0],h2:h[1],m1:m[0],m2:m[1],s1:s[0],s2:s[1] };
+    const raw = `${h}:${m}:${s}`;
+    return isAr ? toHindi(raw) : raw;
   };
 
   useEffect(() => {
-    setP(calc());
-    ref.current = setInterval(() => setP(calc()), 1000);
+    setStr(calc());
+    ref.current = setInterval(() => setStr(calc()), 1000);
     return () => { if (ref.current) clearInterval(ref.current); };
-  }, [targetMin]);
-
-  const D = ({ v }: { v:string }) => (
-    <span style={{ display:"inline-block", width:"0.62em", textAlign:"center" }}>{v}</span>
-  );
-  const C = () => <span style={{ display:"inline-block", width:"0.3em", textAlign:"center" }}>:</span>;
+  }, [targetMin, isAr]);
 
   return (
-    <div style={{ fontFamily:"'Courier New',Courier,monospace", fontSize:"2.2rem", color:"#f5f0e8", fontWeight:700, lineHeight:1, letterSpacing:0 }}>
-      <D v={p.h1}/><D v={p.h2}/><C/><D v={p.m1}/><D v={p.m2}/><C/><D v={p.s1}/><D v={p.s2}/>
+    <div style={{ direction:"ltr", fontFamily:"'Courier New',Courier,monospace", fontSize:"1.8rem", color:"#f5f0e8", fontWeight:700, lineHeight:1, letterSpacing:"0.02em", fontVariantNumeric:"tabular-nums", whiteSpace:"nowrap" }}>
+      {str}
     </div>
   );
 });
@@ -174,7 +173,7 @@ export default function PrayerTimesScreen({ onHome, onSettings }: { onHome:()=>v
                 <div style={{ fontFamily:"'Scheherazade New',serif", fontSize:"2rem", color:"#d4a843", lineHeight:1 }}>
                   {prayerName(nextPrayer)}
                 </div>
-                <PrayerCountdown targetMin={nextPrayer.min} />
+                <PrayerCountdown targetMin={nextPrayer.min} isAr={isAr} />
               </div>
 
               {/* Progress bar — always visible */}

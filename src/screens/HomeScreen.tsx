@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef, memo } from "react";
-import { computeTimes, toHijri, timeToMin, PRAYER_LIST_5, loadPrefs } from "./prayerUtils";
+import { computeTimes, toHijri, timeToMin, PRAYER_LIST_5, PRAYER_LIST, loadPrefs } from "./prayerUtils";
 import { getLang, T } from "./langStore";
 
-// ─── Isolated countdown — each digit in its own fixed box = zero layout shift ───
-const PrayerCountdown = memo(({ targetMin }: { targetMin: number }) => {
-  const [parts, setParts] = useState({ h1:"0",h2:"0",m1:"0",m2:"0",s1:"0",s2:"0" });
+// ── Numeral helpers ───────────────────────────────────────────────────────────
+const HINDI = "٠١٢٣٤٥٦٧٨٩";
+function toHindi(s: string) { return s.replace(/\d/g, d => HINDI[+d]); }
+function toArNums(s: string | number) { return String(s).replace(/\d/g, d => HINDI[+d]); }
+
+// ── Countdown — direction always LTR internally so digits never flip in RTL ───
+const PrayerCountdown = memo(({ targetMin, isAr, fontSize = "1.7rem", color = "#1a1a2e" }: {
+  targetMin: number; isAr: boolean; fontSize?: string; color?: string;
+}) => {
+  const [str, setStr] = useState("00:00:00");
   const ref = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const calc = () => {
@@ -12,49 +19,57 @@ const PrayerCountdown = memo(({ targetMin }: { targetMin: number }) => {
     const nowSec = n.getHours() * 3600 + n.getMinutes() * 60 + n.getSeconds();
     let diff = targetMin * 60 - nowSec;
     if (diff < 0) diff += 86400;
-    const h = Math.floor(diff / 3600);
-    const m = Math.floor((diff % 3600) / 60);
-    const s = diff % 60;
-    const hh = String(h).padStart(2,"0");
-    const mm = String(m).padStart(2,"0");
-    const ss = String(s).padStart(2,"0");
-    return { h1:hh[0], h2:hh[1], m1:mm[0], m2:mm[1], s1:ss[0], s2:ss[1] };
+    const h = String(Math.floor(diff / 3600)).padStart(2, "0");
+    const m = String(Math.floor((diff % 3600) / 60)).padStart(2, "0");
+    const s = String(diff % 60).padStart(2, "0");
+    const raw = `${h}:${m}:${s}`;
+    return isAr ? toHindi(raw) : raw;
   };
 
   useEffect(() => {
-    setParts(calc());
-    ref.current = setInterval(() => setParts(calc()), 1000);
+    setStr(calc());
+    ref.current = setInterval(() => setStr(calc()), 1000);
     return () => { if (ref.current) clearInterval(ref.current); };
-  }, [targetMin]);
-
-  const D = ({ v }: { v: string }) => (
-    <span style={{
-      display: "inline-block",
-      width: "1ch",
-      textAlign: "center",
-      fontVariantNumeric: "tabular-nums",
-    }}>{v}</span>
-  );
-  const Sep = () => <span style={{ display: "inline-block", width: "0.5ch", textAlign: "center" }}>:</span>;
+  }, [targetMin, isAr]);
 
   return (
     <div style={{
+      direction: "ltr",       // always LTR — digits must never reverse
       fontFamily: "'Courier New', Courier, monospace",
-      fontSize: "3.2rem",
-      color: "#f5f0e8",
+      fontSize,
+      color,
       fontWeight: 700,
       lineHeight: 1,
-      textAlign: "center",
-      // Lock the entire countdown to a fixed size — never shifts
-      width: "100%",
-      letterSpacing: 0,
+      letterSpacing: "0.02em",
+      fontVariantNumeric: "tabular-nums",
+      whiteSpace: "nowrap",
     }}>
-      <D v={parts.h1}/><D v={parts.h2}/><Sep/><D v={parts.m1}/><D v={parts.m2}/><Sep/><D v={parts.s1}/><D v={parts.s2}/>
+      {str}
     </div>
   );
 });
 
-// ─── Notification helpers ─────────────────────────────────────────────────────
+// ── Progress bar ──────────────────────────────────────────────────────────────
+function ProgressBar({ prevMin, nextMin, nowMin }: { prevMin: number; nextMin: number; nowMin: number }) {
+  const total = nextMin > prevMin ? nextMin - prevMin : nextMin + 1440 - prevMin;
+  const elapsed = nowMin >= prevMin ? nowMin - prevMin : nowMin + 1440 - prevMin;
+  const pct = Math.min(100, Math.max(0, (elapsed / total) * 100));
+  return (
+    <div style={{ height: 5, background: "rgba(44,62,107,0.1)", borderRadius: 3, margin: "10px 0 0" }}>
+      <div style={{ height: "100%", width: `${pct}%`, background: "#d4a843", borderRadius: 3 }} />
+    </div>
+  );
+}
+
+// ── Bell ─────────────────────────────────────────────────────────────────────
+const Bell = ({ on, onClick }: { on: boolean; onClick: () => void }) => (
+  <button onClick={e => { e.stopPropagation(); onClick(); }}
+    style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 5px", fontSize: "1.15rem", color: on ? "#c0392b" : "rgba(0,0,0,0.15)", lineHeight: 1 }}>
+    {on ? "🔔" : "🔕"}
+  </button>
+);
+
+// ── Notification helpers ──────────────────────────────────────────────────────
 async function requestNotifPermission(): Promise<boolean> {
   if (!("Notification" in window)) return false;
   if (Notification.permission === "granted") return true;
@@ -64,48 +79,42 @@ async function requestNotifPermission(): Promise<boolean> {
 }
 
 function scheduleNotifications(times: Record<string, string>, lang: string) {
-  // Store scheduled timeouts in sessionStorage keys so we don't double-schedule
   const isAr = lang === "ar";
   const prayers = [
-    { key: "fajr",    arName: "الفجر",   enName: "Fajr"    },
-    { key: "dhuhr",   arName: "الظهر",   enName: "Dhuhr"   },
-    { key: "asr",     arName: "العصر",   enName: "Asr"     },
-    { key: "maghrib", arName: "المغرب",  enName: "Maghrib" },
-    { key: "isha",    arName: "العشاء",  enName: "Isha"    },
+    { key: "fajr",    arName: "الفجر",  enName: "Fajr"    },
+    { key: "dhuhr",   arName: "الظهر",  enName: "Dhuhr"   },
+    { key: "asr",     arName: "العصر",  enName: "Asr"     },
+    { key: "maghrib", arName: "المغرب", enName: "Maghrib" },
+    { key: "isha",    arName: "العشاء", enName: "Isha"    },
   ];
   const now = new Date();
   const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-
   prayers.forEach(p => {
     if (!times[p.key]) return;
     const [ph, pm] = times[p.key].split(":").map(Number);
-    const prayerSec = ph * 3600 + pm * 60;
-    let diff = prayerSec - nowSec;
-    if (diff < 0) diff += 86400; // next day
+    let diff = ph * 3600 + pm * 60 - nowSec;
+    if (diff < 0) diff += 86400;
     if (diff > 86400) return;
-
     setTimeout(() => {
       if (Notification.permission === "granted") {
         new Notification(isAr ? `حان وقت ${p.arName}` : `Time for ${p.enName}`, {
           body: isAr ? "حان وقت الصلاة" : "Prayer time has arrived",
-          icon: "/favicon.ico",
-          badge: "/favicon.ico",
-          tag: p.key, // prevents duplicate notifications
+          icon: "/favicon.ico", tag: p.key,
         });
       }
     }, diff * 1000);
   });
 }
 
-// ─── Static data ─────────────────────────────────────────────────────────────
+// ── Static data ───────────────────────────────────────────────────────────────
 const INSPIRATIONS = [
-  { ar: "إِنَّ مَعَ الْعُسْرِ يُسْرًا",                                                      source: "Ash-Sharh 6",   en: "Indeed, with hardship comes ease." },
-  { ar: "وَمَن يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ",                                  source: "At-Talaq 3",    en: "Whoever relies upon Allah — He is sufficient for him." },
-  { ar: "فَاذْكُرُونِي أَذْكُرْكُمْ",                                                         source: "Al-Baqarah 152",en: "Remember Me, and I will remember you." },
-  { ar: "إِنَّ اللَّهَ مَعَ الصَّابِرِينَ",                                                   source: "Al-Baqarah 153",en: "Indeed, Allah is with the patient." },
-  { ar: "وَقُل رَّبِّ زِدْنِي عِلْمًا",                                                       source: "Ta-Ha 114",     en: "Say: My Lord, increase me in knowledge." },
-  { ar: "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ",                                              source: "Al Imran 173",  en: "Allah is sufficient for us, and He is the best Guardian." },
-  { ar: "رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً",                source: "Al-Baqarah 201",en: "Our Lord, give us good in this world and good in the Hereafter." },
+  { ar: "إِنَّ مَعَ الْعُسْرِ يُسْرًا",                                         source: "Ash-Sharh 6",    en: "Indeed, with hardship comes ease." },
+  { ar: "وَمَن يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ",                     source: "At-Talaq 3",     en: "Whoever relies upon Allah — He is sufficient for him." },
+  { ar: "فَاذْكُرُونِي أَذْكُرْكُمْ",                                            source: "Al-Baqarah 152", en: "Remember Me, and I will remember you." },
+  { ar: "إِنَّ اللَّهَ مَعَ الصَّابِرِينَ",                                      source: "Al-Baqarah 153", en: "Indeed, Allah is with the patient." },
+  { ar: "وَقُل رَّبِّ زِدْنِي عِلْمًا",                                          source: "Ta-Ha 114",      en: "Say: My Lord, increase me in knowledge." },
+  { ar: "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ",                                 source: "Al Imran 173",   en: "Allah is sufficient for us, and He is the best Guardian." },
+  { ar: "رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً",   source: "Al-Baqarah 201", en: "Our Lord, give us good in this world and good in the Hereafter." },
 ];
 
 function getAzkarCard(h: number, t: typeof T.en) {
@@ -117,22 +126,27 @@ function getAzkarCard(h: number, t: typeof T.en) {
   return                         { icon: "🌙", ar: "أذكار النوم",      desc: t.sleepDesc };
 }
 
-function toArNums(s: string | number) {
-  return String(s).replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[+d]);
-}
-
 const WEEKDAYS_EN = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const WEEKDAYS_AR = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+const HIJRI_MONTHS_AR = ["مُحَرَّم","صَفَر","رَبيع الأوَّل","رَبيع الثاني","جُمادى الأولى","جُمادى الآخرة","رَجَب","شَعبان","رَمَضان","شَوَّال","ذو القَعدة","ذو الحِجَّة"];
 const CARD_H = 88;
 
 export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => void }) {
-  // now only updates every minute — no per-second re-render of whole screen
   const [now, setNow]           = useState(new Date());
   const [times, setTimes]       = useState<Record<string, string> | null>(null);
   const [locationName, setLoc]  = useState("");
   const [noLocation, setNoLoc]  = useState(false);
   const [lastRead, setLastRead] = useState<{ page: number; surahName: string } | null>(null);
   const [notifStatus, setNotifStatus] = useState<"unknown"|"granted"|"denied"|"unsupported">("unknown");
+  const [expanded, setExpanded] = useState(false);
+  const [bells, setBells] = useState<Record<string, [boolean,boolean,boolean]>>({
+    fajr:    [true,  true,  true ],
+    sunrise: [false, false, false],
+    dhuhr:   [true,  true,  true ],
+    asr:     [true,  true,  true ],
+    maghrib: [true,  true,  true ],
+    isha:    [true,  true,  true ],
+  });
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const lang   = getLang() || "en";
@@ -143,13 +157,11 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
   const inspiration = INSPIRATIONS[now.getDate() % INSPIRATIONS.length];
   const azkarCard   = getAzkarCard(now.getHours(), t);
 
-  // ── Minute timer — whole screen only re-renders once per minute
   useEffect(() => {
     timerRef.current = setInterval(() => setNow(new Date()), 60000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  // ── Load prefs + data
   useEffect(() => {
     const prefs = loadPrefs();
     if (prefs) {
@@ -166,32 +178,40 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
         if (pos?.page) setLastRead({ page: pos.page, surahName: pos.surahName || "" });
       }
     } catch {}
-    // Check notification permission state
     if (!("Notification" in window)) setNotifStatus("unsupported");
     else setNotifStatus(Notification.permission === "granted" ? "granted" : Notification.permission === "denied" ? "denied" : "unknown");
   }, []);
 
-  // ── Schedule notifications when times load
   useEffect(() => {
-    if (times && notifStatus === "granted") {
-      scheduleNotifications(times, lang);
-    }
+    if (times && notifStatus === "granted") scheduleNotifications(times, lang);
   }, [times, notifStatus]);
 
-  const hijri  = toHijri(now);
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-
-  const hijriMonthIdx = ["مُحَرَّم","صَفَر","رَبيع الأوَّل","رَبيع الثاني","جُمادى الأولى","جُمادى الآخرة","رَجَب","شَعبان","رَمَضان","شَوَّال","ذو القَعدة","ذو الحِجَّة"].indexOf(hijri.monthAr);
+  const hijri        = toHijri(now);
+  const nowMin       = now.getHours() * 60 + now.getMinutes();
+  const hijriMonthIdx = HIJRI_MONTHS_AR.indexOf(hijri.monthAr);
+  const dayName      = isAr ? WEEKDAYS_AR[now.getDay()] : WEEKDAYS_EN[now.getDay()];
 
   const nextPrayer = times ? (() => {
     for (const p of PRAYER_LIST_5) {
       const m = timeToMin(times[p.key]);
-      if (m > nowMin) return { ...p, min: m, time: times[p.key] };
+      if (m > nowMin) return { ...p, min: m };
     }
-    return { ...PRAYER_LIST_5[0], min: timeToMin(times["fajr"]) + 1440, time: times["fajr"] };
+    return { ...PRAYER_LIST_5[0], min: timeToMin(times["fajr"]) + 1440 };
   })() : null;
 
-  const dayName = isAr ? WEEKDAYS_AR[now.getDay()] : WEEKDAYS_EN[now.getDay()];
+  const prevPrayer = times && nextPrayer ? (() => {
+    const idx = PRAYER_LIST_5.findIndex(p => p.key === nextPrayer.key);
+    const prev = PRAYER_LIST_5[(idx - 1 + PRAYER_LIST_5.length) % PRAYER_LIST_5.length];
+    return { ...prev, min: timeToMin(times[prev.key]) };
+  })() : null;
+
+  const toggleBell = (key: string, i: 0|1|2) => {
+    setBells(prev => {
+      const arr = [...prev[key]] as [boolean,boolean,boolean];
+      arr[i] = !arr[i];
+      return { ...prev, [key]: arr };
+    });
+  };
 
   const handleEnableNotif = async () => {
     const granted = await requestNotifPermission();
@@ -218,35 +238,31 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
         @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         .tap:active { opacity: 0.82; }
+        button { font-family: inherit; }
       `}</style>
 
       {/* ── HEADER ── */}
       <div style={{ background: "#2c3e6b", padding: "48px 18px 8px" }}>
-        <div dir={isAr ? "rtl" : "ltr"} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          {/* START: day name + "8 Ramadan" */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontFamily: uiFont, fontSize: "1.45rem", fontWeight: 700, color: "#d4a843", lineHeight: 1.25 }}>
-              {dayName}
-            </div>
-            <div style={{ fontFamily: isAr ? "'Scheherazade New', serif" : uiFont, fontSize: "1.45rem", fontWeight: 700, color: "#d4a843", lineHeight: 1.25 }}>
+            <div style={{ fontFamily: uiFont, fontSize: "1.45rem", fontWeight: 700, color: "#d4a843", lineHeight: 1.25 }}>{dayName}</div>
+            <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.45rem", fontWeight: 700, color: "#d4a843", lineHeight: 1.25 }}>
               {isAr ? `${toArNums(hijri.day)} ${hijri.monthAr}` : `${hijri.day} ${hijri.month}`}
             </div>
           </div>
-          {/* END: numeric dates */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: isAr ? "flex-start" : "flex-end" }}>
             <div style={{ fontFamily: isAr ? "'Scheherazade New', serif" : uiFont, fontSize: "1.45rem", fontWeight: 700, color: "#d4a843", lineHeight: 1.25 }}>
               {isAr
                 ? `${toArNums(hijri.day)}/${toArNums(hijriMonthIdx + 1)}/${toArNums(hijri.year)}`
                 : `${hijri.day}/${hijriMonthIdx + 1}/${hijri.year}`}
             </div>
-            <div style={{ fontFamily: uiFont, fontSize: "1.45rem", fontWeight: 700, color: "#d4a843", lineHeight: 1.25 }}>
+            <div style={{ fontFamily: isAr ? "'Scheherazade New', serif" : uiFont, fontSize: "1.45rem", fontWeight: 700, color: "#d4a843", lineHeight: 1.25, direction: "ltr" }}>
               {isAr
                 ? `${toArNums(now.getDate())}/${toArNums(now.getMonth()+1)}/${toArNums(now.getFullYear())}`
                 : `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`}
             </div>
           </div>
         </div>
-        {/* Location — always LTR, always left */}
         {locationName && (
           <div style={{ fontFamily: uiFont, fontSize: "0.95rem", color: "rgba(245,240,232,0.82)", display: "flex", alignItems: "center", gap: 4, marginTop: 6, direction: "ltr" }}>
             <span>📍</span><span>{locationName}</span>
@@ -267,57 +283,93 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
           </div>
         )}
 
-        {/* ── Notification enable banner ── */}
+        {/* Notification banner */}
         {notifStatus === "unknown" && times && (
           <div style={{ background: "#2c3e6b", borderRadius: 14, padding: "12px 18px", display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: "1.4rem" }}>🔔</span>
-            <div style={{ flex: 1, fontFamily: uiFont, fontSize: "0.9rem", color: "rgba(245,240,232,0.85)", lineHeight: 1.4 }}>
+            <div style={{ flex: 1, fontSize: "0.9rem", color: "rgba(245,240,232,0.85)", lineHeight: 1.4 }}>
               {isAr ? "فعّل الإشعارات لتلقي تنبيهات أوقات الصلاة" : "Enable notifications to get prayer time alerts"}
             </div>
             <button onClick={handleEnableNotif}
-              style={{ background: "#d4a843", border: "none", borderRadius: 8, color: "#1a1a2e", fontFamily: uiFont, fontSize: "0.85rem", fontWeight: 700, padding: "8px 14px", cursor: "pointer", whiteSpace: "nowrap" }}>
+              style={{ background: "#d4a843", border: "none", borderRadius: 8, color: "#1a1a2e", fontSize: "0.85rem", fontWeight: 700, padding: "8px 14px", cursor: "pointer", whiteSpace: "nowrap" }}>
               {isAr ? "تفعيل" : "Enable"}
             </button>
           </div>
         )}
         {notifStatus === "denied" && (
-          <div style={{ background: "rgba(180,60,60,0.12)", border: "1px solid rgba(180,60,60,0.3)", borderRadius: 14, padding: "10px 16px", fontFamily: uiFont, fontSize: "0.82rem", color: "#8b2020" }}>
-            {isAr ? "⚠ تم رفض الإشعارات — يمكنك تفعيلها من إعدادات المتصفح" : "⚠ Notifications blocked — enable them in browser settings"}
+          <div style={{ background: "rgba(180,60,60,0.1)", border: "1px solid rgba(180,60,60,0.25)", borderRadius: 14, padding: "10px 16px", fontSize: "0.82rem", color: "#8b2020" }}>
+            {isAr ? "⚠ تم رفض الإشعارات — يمكنك تفعيلها من إعدادات المتصفح" : "⚠ Notifications blocked — enable in browser settings"}
           </div>
         )}
         {notifStatus === "granted" && (
-          <div style={{ background: "rgba(44,107,70,0.1)", border: "1px solid rgba(44,107,70,0.25)", borderRadius: 14, padding: "10px 16px", fontFamily: uiFont, fontSize: "0.82rem", color: "#1a5c33" }}>
+          <div style={{ background: "rgba(44,107,70,0.1)", border: "1px solid rgba(44,107,70,0.2)", borderRadius: 14, padding: "10px 16px", fontSize: "0.82rem", color: "#1a5c33" }}>
             🔔 {isAr ? "الإشعارات مفعلة — ستتلقى تنبيهاً عند كل أذان" : "Notifications enabled — you'll be alerted at each prayer time"}
           </div>
         )}
 
-        {/* ── CARD 1: Prayer ── */}
+        {/* ── CARD 1: Prayer — image 2 style, white/light card ── */}
         {times && nextPrayer && (
-          <div style={{ ...cardBase, background: "linear-gradient(160deg, #2c3e6b 0%, #1a2a4a 100%)" }} className="tap"
-            onClick={() => onNavigate("prayer")}>
+          <div style={{ ...cardBase, background: "#fff" }}>
 
-            {/* Prayer name */}
-            <div style={{ textAlign: "center", paddingTop: 18 }}>
-              <span style={{ fontFamily: "'Scheherazade New', serif", fontSize: "2.6rem", color: "#d4a843", lineHeight: 1 }}>
-                {nextPrayer.ar}
-              </span>
-              {!isAr && (
-                <div style={{ fontFamily: uiFont, fontSize: "1rem", color: "rgba(245,240,232,0.5)", marginTop: 2 }}>
-                  {nextPrayer.en}
+            {/* Top always-visible section */}
+            <div style={{ padding: "16px 18px 14px" }}>
+
+              {/* Prayer name (start) + countdown (end) on same row */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "2rem", color: "#2c3e6b", lineHeight: 1 }}>
+                  {isAr ? nextPrayer.ar : nextPrayer.en}
                 </div>
-              )}
+                <PrayerCountdown targetMin={nextPrayer.min} isAr={isAr} fontSize="1.6rem" color="#1a1a2e" />
+              </div>
+
+              {/* Progress bar */}
+              {prevPrayer && <ProgressBar prevMin={prevPrayer.min} nextMin={nextPrayer.min} nowMin={nowMin} />}
+
+              {/* Show more / less button */}
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 14 }}>
+                <button
+                  onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+                  style={{ background: "#c0392b", border: "none", borderRadius: 20, color: "#fff", fontSize: "0.9rem", fontWeight: 600, padding: "7px 26px", cursor: "pointer" }}>
+                  {expanded ? (isAr ? "إظهار أقل" : "Show less") : (isAr ? "إظهار المزيد" : "Show more")}
+                </button>
+              </div>
             </div>
 
-            {/* Countdown — isolated, zero layout shift */}
-            <div style={{ padding: "8px 20px 4px" }}>
-              <PrayerCountdown targetMin={nextPrayer.min} />
-            </div>
+            {/* Expandable bell schedule */}
+            <div style={{ overflow: "hidden", maxHeight: expanded ? 700 : 0, transition: "max-height 0.35s ease" }}>
+              <div style={{ borderTop: "1px solid #f0ebe3" }}>
 
-            {/* Tap hint */}
-            <div style={{ textAlign: "center", padding: "10px 20px 16px" }}>
-              <span style={{ fontFamily: uiFont, fontSize: "0.88rem", color: "rgba(255,255,255,0.45)" }}>
-                {isAr ? "اضغط لعرض الجدول الكامل" : "Tap for full schedule"}
-              </span>
+                {/* Column headers */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr repeat(3,44px) 60px", padding: "8px 16px 4px", borderBottom: "1px solid #f5f0f0" }}>
+                  <div />
+                  {[isAr ? "قبل" : "Before", isAr ? "أذان" : "Azan", isAr ? "بعد" : "After"].map(h => (
+                    <div key={h} style={{ fontSize: "0.68rem", color: "#aaa", textAlign: "center", letterSpacing: "0.04em" }}>{h}</div>
+                  ))}
+                  <div style={{ fontSize: "0.68rem", color: "#aaa", textAlign: "center" }}>{isAr ? "الوقت" : "Time"}</div>
+                </div>
+
+                {/* Prayer rows — all full opacity, no graying */}
+                {PRAYER_LIST.map(p => {
+                  const isCur = nextPrayer.key === p.key;
+                  const b = bells[p.key] ?? [false, false, false];
+                  return (
+                    <div key={p.key} style={{ display: "grid", gridTemplateColumns: "1fr repeat(3,44px) 60px", alignItems: "center", padding: "7px 16px", borderBottom: "1px solid #f8f5f2", background: isCur ? "rgba(44,62,107,0.05)" : "transparent" }}>
+                      <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.1rem", color: isCur ? "#2c3e6b" : "#333", fontWeight: isCur ? 700 : 400 }}>
+                        {isAr ? p.ar : p.en}
+                      </div>
+                      {([0, 1, 2] as (0|1|2)[]).map(i => (
+                        <div key={i} style={{ display: "flex", justifyContent: "center" }}>
+                          <Bell on={b[i]} onClick={() => toggleBell(p.key, i)} />
+                        </div>
+                      ))}
+                      <div style={{ direction: "ltr", fontFamily: "'Courier New', monospace", fontSize: "0.9rem", fontWeight: isCur ? 700 : 400, color: isCur ? "#2c3e6b" : "#555", textAlign: "center" }}>
+                        {times[p.key]}
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ height: 8 }} />
+              </div>
             </div>
           </div>
         )}
@@ -356,13 +408,11 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
 
         {/* ── CARD 4: Ayah of the day ── */}
         <div style={{ ...cardBase, background: "#fff" }} className="tap" onClick={() => onNavigate("quran")}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "0 20px", minHeight: CARD_H }}>
-            <div style={{ flex: 1, padding: "14px 0" }}>
-              <div style={lbl()}>{t.ayahOfDay}</div>
-              <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.45rem", color: "#2c3e6b", direction: "rtl", lineHeight: 1.7, marginBottom: 6 }}>{inspiration.ar}</div>
-              <div style={{ fontFamily: uiFont, fontStyle: "italic", fontSize: "0.88rem", color: "#777", lineHeight: 1.45, marginBottom: 4 }}>"{inspiration.en}"</div>
-              <div style={{ fontFamily: uiFont, fontSize: "0.82rem", color: "#d4a843" }}>— {inspiration.source}</div>
-            </div>
+          <div style={{ padding: "14px 20px" }}>
+            <div style={lbl()}>{t.ayahOfDay}</div>
+            <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.45rem", color: "#2c3e6b", direction: "rtl", lineHeight: 1.7, marginBottom: 6 }}>{inspiration.ar}</div>
+            <div style={{ fontFamily: uiFont, fontStyle: "italic", fontSize: "0.88rem", color: "#777", lineHeight: 1.45, marginBottom: 4 }}>"{inspiration.en}"</div>
+            <div style={{ fontFamily: uiFont, fontSize: "0.82rem", color: "#d4a843" }}>— {inspiration.source}</div>
           </div>
         </div>
 
