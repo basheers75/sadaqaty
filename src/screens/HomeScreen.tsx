@@ -78,7 +78,14 @@ async function requestNotifPermission(): Promise<boolean> {
   return result === "granted";
 }
 
+// Track scheduled timeouts so we can cancel and re-schedule if needed
+const scheduledTimers: ReturnType<typeof setTimeout>[] = [];
+
 function scheduleNotifications(times: Record<string, string>, lang: string) {
+  // Clear any previously scheduled timers
+  scheduledTimers.forEach(id => clearTimeout(id));
+  scheduledTimers.length = 0;
+
   const isAr = lang === "ar";
   const prayers = [
     { key: "fajr",    arName: "الفجر",  enName: "Fajr"    },
@@ -87,23 +94,53 @@ function scheduleNotifications(times: Record<string, string>, lang: string) {
     { key: "maghrib", arName: "المغرب", enName: "Maghrib" },
     { key: "isha",    arName: "العشاء", enName: "Isha"    },
   ];
+
   const now = new Date();
-  const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  const nowMs = now.getTime();
+
   prayers.forEach(p => {
-    if (!times[p.key]) return;
-    const [ph, pm] = times[p.key].split(":").map(Number);
-    let diff = ph * 3600 + pm * 60 - nowSec;
-    if (diff < 0) diff += 86400;
-    if (diff > 86400) return;
-    setTimeout(() => {
+    const timeStr = times[p.key];
+    if (!timeStr) return;
+
+    // Parse HH:MM — robust to "1:05" or "13:05"
+    const parts = timeStr.trim().split(":");
+    if (parts.length < 2) return;
+    const ph = parseInt(parts[0], 10);
+    const pm = parseInt(parts[1], 10);
+    if (isNaN(ph) || isNaN(pm)) return;
+
+    // Build a Date object for this prayer time today
+    const prayerDate = new Date();
+    prayerDate.setHours(ph, pm, 0, 0);
+
+    // If already passed today, schedule for tomorrow
+    let diffMs = prayerDate.getTime() - nowMs;
+    if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+
+    // Don't schedule if more than 24h away
+    if (diffMs > 24 * 60 * 60 * 1000) return;
+
+    console.log(`[Notif] Scheduling ${p.enName} in ${Math.round(diffMs/1000/60)} minutes (at ${timeStr})`);
+
+    const id = setTimeout(() => {
+      console.log(`[Notif] Firing notification for ${p.enName}`);
       if (Notification.permission === "granted") {
-        new Notification(isAr ? `حان وقت ${p.arName}` : `Time for ${p.enName}`, {
-          body: isAr ? "حان وقت الصلاة" : "Prayer time has arrived",
-          icon: "/favicon.ico", tag: p.key,
-        });
+        new Notification(
+          isAr ? `حان وقت ${p.arName}` : `Time for ${p.enName}`,
+          {
+            body: isAr ? "حان وقت الصلاة" : "Prayer time has arrived",
+            icon: "/favicon.ico",
+            tag: p.key,
+            requireInteraction: true, // stays on screen until dismissed
+          }
+        );
       }
-    }, diff * 1000);
+    }, diffMs);
+
+    scheduledTimers.push(id);
   });
+
+  console.log(`[Notif] Scheduled ${scheduledTimers.length} notifications`);
 }
 
 // ── Static data ───────────────────────────────────────────────────────────────
@@ -182,9 +219,12 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
     else setNotifStatus(Notification.permission === "granted" ? "granted" : Notification.permission === "denied" ? "denied" : "unknown");
   }, []);
 
+  // ── Schedule notifications — only when times loaded AND permission confirmed
   useEffect(() => {
-    if (times && notifStatus === "granted") scheduleNotifications(times, lang);
-  }, [times, notifStatus]);
+    if (times && notifStatus === "granted") {
+      scheduleNotifications(times, lang);
+    }
+  }, [times, notifStatus, lang]);
 
   const hijri        = toHijri(now);
   const nowMin       = now.getHours() * 60 + now.getMinutes();
