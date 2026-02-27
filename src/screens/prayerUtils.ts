@@ -154,7 +154,17 @@ const STORE_KEY = "sadaqa_location_prefs";
 export function loadPrefs(): LocationPrefs | null {
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    // Migrate old format: offsetMin → offsets (apply old offset to all prayers)
+    if (p && !p.offsets) {
+      p.offsets = { ...DEFAULT_OFFSETS };
+    }
+    // Always ensure offsets has all keys
+    if (p && p.offsets) {
+      p.offsets = { ...DEFAULT_OFFSETS, ...p.offsets };
+    }
+    return p;
   } catch { return null; }
 }
 
