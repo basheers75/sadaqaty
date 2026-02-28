@@ -109,9 +109,9 @@ function loadLastPosition(): { surahId: number; verseId: number } | null {
   try { return JSON.parse(localStorage.getItem(LAST_POS_KEY) ?? "null"); }
   catch { return null; }
 }
-function saveLastPosition(surahId: number, verseId: number, surahName = "", page = 0) {
+function saveLastPosition(surahId: number, verseId: number, surahName = "", page = 0, surahNameAr = "") {
   const computedPage = page || getPageForVerse(surahId, verseId);
-  localStorage.setItem(LAST_POS_KEY, JSON.stringify({ surahId, verseId, page: computedPage, surahName }));
+  localStorage.setItem(LAST_POS_KEY, JSON.stringify({ surahId, verseId, page: computedPage, surahName, surahNameAr }));
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -317,8 +317,10 @@ export default function QuranScreen({ onHome }: { onHome?: () => void }) {
             const s = Number(el.dataset.surah);
             const v = Number(el.dataset.verse);
             if (s && v) {
-              const name = surahs.find(sr => sr.id === s)?.transliteration || "";
-              saveLastPosition(s, v, name);
+              const surah = surahs.find(sr => sr.id === s);
+              const name = surah?.transliteration || "";
+              const nameAr = surah?.name || "";
+              saveLastPosition(s, v, name, 0, nameAr);
               currentVisibleVerse.current = { surahId: s, verseId: v };
             }
           }
