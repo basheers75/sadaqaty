@@ -184,7 +184,7 @@ const MONTHS_EN = ["January","February","March","April","May","June","July","Aug
 const WEEKDAYS_EN = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const WEEKDAYS_AR = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 const HIJRI_MONTHS_AR = ["مُحَرَّم","صَفَر","رَبيع الأوَّل","رَبيع الثاني","جُمادى الأولى","جُمادى الآخرة","رَجَب","شَعبان","رَمَضان","شَوَّال","ذو القَعدة","ذو الحِجَّة"];
-const CARD_H = 88;
+const CARD_H = 96;
 
 export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => void }) {
   const [now, setNow]           = useState(new Date());
@@ -277,7 +277,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
   // Kicker label style — darkened for WCAG contrast on ivory, no uppercase
   const kicker = (light = false): React.CSSProperties => ({
     fontFamily: uiFont,
-    fontSize: "0.78rem",
+    fontSize: "0.88rem",
     fontWeight: 600,
     letterSpacing: "0.04em",
     color: light ? "rgba(212,168,67,0.75)" : "#64748b",
@@ -311,14 +311,14 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
       `}</style>
 
       {/* ── HEADER — centered, unified, clean ── */}
-      <div style={{ background: "#2c3e6b", padding: "52px 20px 16px", textAlign: "center" }}>
+      <div style={{ background: "#2c3e6b", padding: "36px 20px 12px", textAlign: "center" }}>
 
         {/* Line 1: Day • Hijri date — large gold */}
         <div style={{
           fontFamily: isAr ? "'Scheherazade New', serif" : "'DM Sans', sans-serif",
           fontSize: "1.5rem", fontWeight: 700, color: "#d4a843", lineHeight: 1.3,
         }}>
-          {isAr ? `${dayName} • ${hijriLine}` : `${dayName} • ${hijriLine}`}
+          {isAr ? `${dayName}، ${hijriLine}` : `${dayName} – ${hijriLine}`}
         </div>
 
         {/* Line 2: Gregorian date — smaller, white */}
@@ -424,7 +424,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
                     : times[p.key];
                   return (
                     <div key={p.key} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 72px", alignItems: "center", padding: "9px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: isCur ? "rgba(255,255,255,0.08)" : "transparent" }}>
-                      <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.2rem", color: isCur ? "#d4a843" : "rgba(245,240,232,0.85)", fontWeight: isCur ? 700 : 400 }}>
+                      <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.3rem", color: isCur ? "#d4a843" : "rgba(245,240,232,0.88)", fontWeight: isCur ? 700 : 400 }}>
                         {isAr ? p.ar : p.en}
                       </div>
                       {([0, 1, 2] as (0|1|2)[]).map(i => (
@@ -435,7 +435,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
                           </button>
                         </div>
                       ))}
-                      <div style={{ direction: "ltr", fontFamily: "'Courier New', monospace", fontSize: "0.95rem", fontWeight: isCur ? 700 : 400, color: isCur ? "#d4a843" : "rgba(245,240,232,0.65)", textAlign: "center" }}>
+                      <div style={{ direction: "ltr", fontFamily: "'Courier New', monospace", fontSize: "1.15rem", fontWeight: isCur ? 700 : 400, color: isCur ? "#d4a843" : "rgba(245,240,232,0.75)", textAlign: "center" }}>
                         {timeStr}
                       </div>
                     </div>
@@ -462,11 +462,11 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
               <div style={kicker()}>{t.continueReading}</div>
               {lastRead ? (
                 <>
-                  <div style={{ fontFamily: uiFont, fontSize: "1.15rem", fontWeight: 600, color: "#1a1a2e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lastRead.surahName}</div>
+                  <div style={{ fontFamily: uiFont, fontSize: "1.4rem", fontWeight: 700, color: "#1a1a2e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lastRead.surahName}</div>
                   <div style={{ fontFamily: uiFont, fontSize: "0.88rem", color: "#64748b", marginTop: 2 }}>{t.page} {isAr ? toArNums(lastRead.page) : lastRead.page}</div>
                 </>
               ) : (
-                <div style={{ fontFamily: uiFont, fontSize: "1.15rem", fontWeight: 600, color: "#1a1a2e" }}>{t.startReading}</div>
+                <div style={{ fontFamily: uiFont, fontSize: "1.4rem", fontWeight: 700, color: "#1a1a2e" }}>{t.startReading}</div>
               )}
             </div>
             <span style={{ color: "#d4a843", fontSize: "1.4rem", flexShrink: 0 }}>{isAr ? "‹" : "›"}</span>
@@ -479,7 +479,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
             <span style={{ fontSize: "2rem", flexShrink: 0 }}>{azkarCard.icon}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={kicker(true)}>{t.nowAzkar}</div>
-              <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.5rem", color: "#d4a843", lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.85rem", color: "#d4a843", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {azkarCard.ar}
               </div>
               {/* Desc text brighter — was too faint */}
@@ -495,7 +495,7 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
         <div style={{ ...cardBase, background: "#fff" }} className="tap" onClick={() => onNavigate("quran")}>
           <div style={{ padding: "16px 20px" }}>
             <div style={kicker()}>{t.ayahOfDay}</div>
-            <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.45rem", color: "#2c3e6b", direction: "rtl", lineHeight: 1.75, marginBottom: 8 }}>
+            <div style={{ fontFamily: "'Scheherazade New', serif", fontSize: "1.9rem", color: "#2c3e6b", direction: "rtl", lineHeight: 2.0, marginBottom: 8 }}>
               {inspiration.ar}
             </div>
             <div style={{ fontFamily: uiFont, fontStyle: "italic", fontSize: "0.88rem", color: "#64748b", lineHeight: 1.5, marginBottom: 5 }}>
