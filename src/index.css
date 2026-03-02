@@ -1,3 +1,10 @@
+@font-face {
+  font-family: 'KFGQPC Uthmanic Script HAFS';
+  src: url('/src/fonts/arabic.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

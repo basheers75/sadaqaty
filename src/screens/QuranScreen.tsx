@@ -271,7 +271,7 @@ export default function QuranScreen({ onHome }: { onHome?: () => void }) {
       }
     } else if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 2) {
       showUI();
-      if (dx < 0) setSelectedPage((p: number) => Math.min(604, p + 1));
+      if (dx > 0) setSelectedPage((p: number) => Math.min(604, p + 1));
       else setSelectedPage((p: number) => Math.max(1, p - 1));
     }
     touchStartX.current = null;
@@ -539,7 +539,7 @@ export default function QuranScreen({ onHome }: { onHome?: () => void }) {
           --teal-pale: #eef1f8;
           --red: #8b1a1a;
           --shadow: rgba(100,70,20,0.15);
-          --font-arabic: 'Scheherazade New', 'KFGQPC Uthmanic Script HAFS', serif;
+          --font-arabic: 'KFGQPC Uthmanic Script HAFS', 'Scheherazade New', serif;
           --font-ui: 'Cormorant Garamond', Georgia, serif;
           --radius: 12px;
           --bg: #f5f0e8;
