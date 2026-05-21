@@ -1,0 +1,27 @@
+{
+  "name": "Sadaqa Jaryeh · صدقة جارية",
+  "short_name": "Sadaqa",
+  "description": "Prayer times, Quran reading, Adhkar and Audio Quran — your daily Islamic companion",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FDFBF7",
+  "theme_color": "#2c3e6b",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "education", "books"]
+}
