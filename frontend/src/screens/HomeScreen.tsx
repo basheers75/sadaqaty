@@ -449,6 +449,26 @@ export default function HomeScreen({ onNavigate }: { onNavigate: (s: string) => 
           </div>
         </div>
 
+        {/* ── CARD 3b: Qibla quick access ── */}
+        <div className="tap" onClick={() => onNavigate("qibla")} style={{
+          ...cardBase, background: "#fff",
+          border: "1.5px solid rgba(212,168,67,0.45)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "0 18px", height: CARD_H }}>
+            <span style={{ fontSize: "2.2rem", flexShrink: 0 }}>🕋</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={kicker()}>{isAr ? "البوصلة" : "Compass"}</div>
+              <div style={{ fontFamily: UI, fontSize: "1.35rem", fontWeight: 700, color: "#1a1a2e" }}>
+                {isAr ? "اتجاه القبلة" : "Qibla Direction"}
+              </div>
+              <div style={{ fontFamily: UI, fontSize: "0.85rem", color: "#64748b", marginTop: 2 }}>
+                {isAr ? "اعرف اتجاه الكعبة من موقعك" : "Find the direction to the Kaaba"}
+              </div>
+            </div>
+            <span style={{ color: "#d4a843", fontSize: "1.5rem", flexShrink: 0, fontWeight: 300 }}>{isAr ? "‹" : "›"}</span>
+          </div>
+        </div>
+
         {/* ── CARD 4: Ayah of the day ── */}
         <div style={{ ...cardBase, background: "#fff" }} className="tap" onClick={() => onNavigate("quran")}>
           <div style={{ padding: "16px 20px" }}>

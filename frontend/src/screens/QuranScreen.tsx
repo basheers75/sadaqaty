@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import quranData from "../data/quran.json";
 import { pageMap } from "../data/pageMap";
+import TafsirModal from "./TafsirModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -435,6 +436,19 @@ export default function QuranScreen({ onHome }: { onHome?: () => void }) {
 
   const [longPressVerse, setLongPressVerse] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Tafsir modal
+  const [tafsirTarget, setTafsirTarget] = useState<{ surahId: number; verseId: number; surahName: string; text: string } | null>(null);
+
+  const openTafsir = useCallback((key: string) => {
+    const [sId, vId] = key.split(":").map(Number);
+    const surah = surahs.find(s => s.id === sId);
+    const verse = surah?.verses.find(v => v.id === vId);
+    if (surah && verse) {
+      setTafsirTarget({ surahId: sId, verseId: vId, surahName: surah.name, text: verse.text });
+      setLongPressVerse(null);
+    }
+  }, []);
 
   const handleVerseTouchStart = useCallback((key: string) => {
     longPressTimer.current = setTimeout(() => {
@@ -1394,6 +1408,54 @@ export default function QuranScreen({ onHome }: { onHome?: () => void }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Long-press floating action bar — opens Tafsir ── */}
+      {longPressVerse && !tafsirTarget && (
+        <div
+          onClick={() => setLongPressVerse(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 350,
+            background: "rgba(15,25,50,0.25)", backdropFilter: "blur(1px)",
+            display: "flex", alignItems: "flex-end", justifyContent: "center",
+            paddingBottom: 30 }}>
+          <div onClick={(e) => e.stopPropagation()}
+            data-testid="verse-action-bar"
+            style={{ background: "#fff", borderRadius: 18,
+              padding: "10px 14px",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+              display: "flex", gap: 8, alignItems: "center",
+              border: "1.5px solid #d4a843" }}>
+            <button
+              data-testid="open-tafsir-btn"
+              onClick={() => openTafsir(longPressVerse)}
+              style={{ background: "linear-gradient(135deg, #2c3e6b, #1a2545)",
+                border: "none", color: "#f5f0e8",
+                padding: "10px 20px", borderRadius: 12, cursor: "pointer",
+                fontSize: "0.95rem", fontWeight: 700,
+                display: "flex", alignItems: "center", gap: 8,
+                fontFamily: "'DM Sans', sans-serif" }}>
+              📖 التفسير
+            </button>
+            <button
+              onClick={() => setLongPressVerse(null)}
+              style={{ background: "#f5f0e8", border: "none", color: "#64748b",
+                width: 38, height: 38, borderRadius: "50%", cursor: "pointer",
+                fontSize: "1rem" }}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tafsir modal ── */}
+      {tafsirTarget && (
+        <TafsirModal
+          surahId={tafsirTarget.surahId}
+          verseId={tafsirTarget.verseId}
+          surahName={tafsirTarget.surahName}
+          verseText={tafsirTarget.text}
+          onClose={() => setTafsirTarget(null)}
+        />
       )}
     </>
   );

@@ -6,10 +6,11 @@ import SettingsScreen from "./screens/SettingsScreen";
 import LanguagePicker from "./screens/LanguagePicker";
 import AzkarScreen from "./screens/AzkarScreen";
 import AudioQuranScreen from "./screens/AudioQuranScreen";
+import QiblaScreen from "./screens/QiblaScreen";
 import { loadPrefs, savePrefs, reverseGeocode } from "./screens/prayerUtils";
 import { getLang } from "./screens/langStore";
 
-type Screen = "home" | "quran" | "prayer" | "settings" | "azkar" | "audio";
+type Screen = "home" | "quran" | "prayer" | "settings" | "azkar" | "audio" | "qibla";
 
 export default function App() {
   const [screen, setScreen]       = useState<Screen>("home");
@@ -50,6 +51,7 @@ export default function App() {
   if (screen === "settings") return <SettingsScreen onHome={home} />;
   if (screen === "azkar")    return <AzkarScreen onHome={home} />;
   if (screen === "audio")    return <AudioQuranScreen onHome={home} />;
+  if (screen === "qibla")    return <QiblaScreen onHome={home} onSettings={() => setScreen("settings")} />;
 
   return <HomeScreen onNavigate={go} />;
 }
