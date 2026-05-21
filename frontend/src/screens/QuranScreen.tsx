@@ -258,8 +258,14 @@ export default function QuranScreen({ onHome }: { onHome?: () => void }) {
       touchStartY.current = null;
       return;
     }
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    const ct = e.changedTouches[0];
+    if (!ct) {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      return;
+    }
+    const dx = ct.clientX - touchStartX.current;
+    const dy = ct.clientY - touchStartY.current;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist < 8) {

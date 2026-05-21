@@ -29,32 +29,42 @@ to complete the missing **Azkar** and **Audio Quran** features.
   bookmarks, font-size, immersive mode), Prayer Times (5 calc methods, GPS,
   per-prayer offsets, notifications), Settings.
 
-### Newly built in this session
-- **AzkarScreen** (`/app/frontend/src/screens/AzkarScreen.tsx`)
-  - 9 categories: morning, evening, after_prayer, sleep, waking, duha, travel, food, general
-  - 77 total bilingual adhkar with sources, counts, and benefit narrations
-  - Tap-to-count gold ring buttons; turn green on completion
-  - Counters persisted per-category per-day in localStorage
-  - Sidebar category switcher; reset-all and per-zikr reset
-  - Live-adjustable font size (+/-)
-  - Smart auto-pick of starting category based on current time + nearby prayer
-- **AudioQuranScreen** (`/app/frontend/src/screens/AudioQuranScreen.tsx`)
-  - 5 reciters: Mishary Alafasy, Husary, Minshawi, Abdul Basit, As-Sudais
-  - Verse-by-verse mode (everyayah.com) with synced highlight + auto-scroll
-  - Full-surah mode (mp3quran.net)
-  - Sticky player bar: play/pause, prev/next, surah picker, auto-continue, progress slider
-  - State persists (last surah, last reciter)
-- **Audio button enabled** in Home bottom dock (was disabled)
-- **App.tsx** routing extended for `azkar` and `audio` screens
-- **PWA foundation**: manifest.webmanifest + theme color
-- **Migration to /app/frontend**: replaced CRA template with Vite project,
-  supervisor runs `yarn start` → vite on port 3000 with `allowedHosts: true`.
+### Session 1 (iter 1) — Azkar + Audio Quran
+- **AzkarScreen** with 9 categories, 77 bilingual adhkar, tap counters, sources
+- **AudioQuranScreen** with 5 reciters, verse-by-verse, full surah, sticky player
+- Audio dock button enabled; App routing extended; PWA manifest added
+
+### Session 2 (iter 2) — Qibla + Tafsir + PWA + Hisn-aligned Azkar
+- **All truncated verse references in Azkar expanded inline** (آية الكرسي،
+  آخر آيتي البقرة، الإخلاص، المعوذتين in evening/after-prayer/sleep sections)
+  — verified clean of `...` shorthand
+- **QiblaScreen** (`/app/frontend/src/screens/QiblaScreen.tsx`):
+  - Great-circle bearing to Kaaba (21.4225°N, 39.8262°E)
+  - Haversine distance in km
+  - Compass dial with Kaaba icon, rotating arrow, cardinal letters (شجقغ/NESW)
+  - DeviceOrientation API with iOS permission flow + webkitCompassHeading + Android alpha
+  - "Aligned" pulse animation when device faces qibla
+  - Home card link added
+- **TafsirModal** (`/app/frontend/src/screens/TafsirModal.tsx`):
+  - Long-press on any verse in QuranScreen opens action bar → tafsir trigger
+  - Fetches Al-Muyassar from api.alquran.cloud, fallback quranenc.com
+  - 30-day localStorage cache (key `tafsir_muyassar_cache_v1`)
+  - Beautiful modal with verse highlight + tafsir + source attribution
+- **PWA Service Worker** (`/app/frontend/public/sw.js`):
+  - Audio cache-first (everyayah.com, mp3quran.net) — works offline after first play
+  - Static font/image cache-first
+  - App shell network-first with cache fallback
+  - APIs pass-through (always fresh)
+  - Versioned cache cleanup on activate
+  - Registered in main.tsx on window 'load'
 
 ## Testing status
 - Iteration 1: testing_agent_v3 frontend E2E → **100% pass, zero bugs**
-- Audio playback verified live from everyayah.com (Alafasy_128kbps/001001.mp3)
-- Counter persistence verified in localStorage
-- All 5 reciters + 114 surahs accessible
+- Iteration 2: testing_agent_v3 frontend E2E → **100% pass on Qibla / Tafsir / PWA / expanded Azkar**
+  - Service Worker verified `activated` at `/sw.js`
+  - Qibla bearing math validated (Cairo → 136.1°, 1287 km — correct)
+  - Tafsir live fetch from api.alquran.cloud succeeds (435-char Al-Muyassar)
+  - All `...` truncations in Azkar source confirmed removed
 
 ## Prioritized backlog
 ### P1 — High impact
